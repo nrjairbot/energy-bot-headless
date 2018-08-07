@@ -39,29 +39,8 @@ const ask = question =>
     rl.question(question, answer => rl.pause() && resolve(answer))
   );
 
-const wait = time =>
-  new Promise((resolve, reject) => setTimeout(resolve, time));
-
 const getRandomInteger = (min, max) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
-
-const waitForElement = async (page, selector, timeout = 500) => {
-  try {
-    const element = await page.evaluate(
-      selector => document.querySelector(selector),
-      selector
-    );
-    if (element) {
-      return;
-    } else {
-      await wait(timeout);
-      return waitForElement(page, selector, timeout);
-    }
-  } catch (e) {
-    await wait(timeout);
-    return waitForElement(page, selector, timeout);
-  }
-};
 
 async function run() {
   const browser = await puppeteer.launch({
@@ -72,7 +51,7 @@ async function run() {
 
   await page.goto("https://game.energy.ch");
 
-  await waitForElement(page, PHONE_NUMBER_INPUT_SELECTOR, 100);
+  await page.waitForSelector(PHONE_NUMBER_INPUT_SELECTOR);
 
   const number = await ask(
     "What is your phone number? (format: +41XXXXXXXXX): "
@@ -81,19 +60,23 @@ async function run() {
   await page.keyboard.type(number);
   await page.click(PHONE_NUMBER_SUBMIT_BUTTON_SELECTOR);
 
-  await waitForElement(page, SMS_CODE_INPUT_SELECTOR, 100);
+  await page.waitForSelector(SMS_CODE_INPUT_SELECTOR);
 
   const code = await ask("What is the 4 digit code you received? ");
   await page.click(SMS_CODE_INPUT_SELECTOR);
   await page.keyboard.type(code);
   await page.click(SMS_CODE_SUBMIT_BUTTON_SELECTOR);
 
-  await waitForElement(page, QUESTION_TEXT_SELECTOR, 100);
+  await page.waitForSelector(QUESTION_TEXT_SELECTOR);
   answerQuestion(page);
+
+  page.on("load", () => answerQuestion(page)); //allows manual interception
 }
 
 async function answerQuestion(page) {
   try {
+    await page.waitForSelector(QUESTION_TEXT_SELECTOR, { options: 5000 });
+
     const question = await page.evaluate(
       selector => document.querySelector(selector).textContent,
       QUESTION_TEXT_SELECTOR
@@ -126,38 +109,23 @@ Enter the answer index:`
 
     await page.click(NEXT_QUESTION_BUTTON_SELECTOR);
 
-    await wait(250);
-
     return answerQuestion(page);
   } catch (e) {
     //check if we lost
-    if (
-      await page.evaluate(
-        selector => document.querySelector(selector),
-        LOSE_RESTART_BUTTON_CONTAINER_SELECTOR
-      )
-    ) {
-      await page.click(LOSE_RESTART_BUTTON_CONTAINER_SELECTOR + " button");
+    try {
+      await page.waitForSelector(LOSE_RESTART_BUTTON_CONTAINER_SELECTOR, {
+        timeout: 5000
+      });
 
-      await wait(250);
-      return answerQuestion(page);
-    }
+      return await page.reload();
+    } catch (e) {
+      //nope so its the decision screen
+      await page.waitForSelector(DECISION_SELECTOR);
 
-    //nope so its the decision screen
-    await waitForElement(page, DECISION_SELECTOR, 100);
-
-    let text = await page.evaluate(
-      selector => document.querySelector(selector).childNodes[0].textContent,
-      DECISION_SELECTOR
-    );
-    if (
-      text ===
-      "Du hast die erste Hürde gepackt. Um welchen Preis möchtest du spielen?"
-    ) {
       await page.click(DECISION_BUTTON_SELECTOR);
 
-      await waitForElement(page, BUBBLE_CONTAINER_SELECTOR, 100);
-      await waitForElement(page, BUBBLE_SELECTOR, 100);
+      await page.waitForSelector(BUBBLE_CONTAINER_SELECTOR);
+      await page.waitForSelector(BUBBLE_SELECTOR);
 
       const selector =
         BUBBLE_SELECTOR + `:nth-child(${getRandomInteger(1, 12)}) > img`;
@@ -167,20 +135,15 @@ Enter the answer index:`
         selector
       );
 
-      await wait(1000);
+      try {
+        await page.waitForSelector(RESTART_BUTTON_SELECTOR, { timeout: 5000 });
 
-      if (
-        await page.evaluate(
-          selector => document.querySelector(selector),
-          RESTART_BUTTON_SELECTOR
-        )
-      ) {
         await page.click(RESTART_BUTTON_SELECTOR);
 
-        await waitForElement(page, QUESTION_TEXT_SELECTOR, 100);
+        await page.waitForSelector(QUESTION_TEXT_SELECTOR);
 
         return answerQuestion(page);
-      } else {
+      } catch (e) {
         console.log("YOU WON!");
 
         return;
