@@ -75,7 +75,7 @@ async function run() {
 
 async function answerQuestion(page) {
   try {
-    await page.waitForSelector(QUESTION_TEXT_SELECTOR, { options: 5000 });
+    await page.waitForSelector(QUESTION_TEXT_SELECTOR, { timeout: 1000 });
 
     const question = await page.evaluate(
       selector => document.querySelector(selector).textContent,
@@ -114,39 +114,48 @@ Enter the answer index:`
     //check if we lost
     try {
       await page.waitForSelector(LOSE_RESTART_BUTTON_CONTAINER_SELECTOR, {
-        timeout: 5000
+        timeout: 1000
       });
 
       return await page.reload();
     } catch (e) {
-      //nope so its the decision screen
-      await page.waitForSelector(DECISION_SELECTOR);
-
-      await page.click(DECISION_BUTTON_SELECTOR);
-
-      await page.waitForSelector(BUBBLE_CONTAINER_SELECTOR);
-      await page.waitForSelector(BUBBLE_SELECTOR);
-
-      const selector =
-        BUBBLE_SELECTOR + `:nth-child(${getRandomInteger(1, 12)}) > img`;
-
-      await page.evaluate(
-        selector => document.querySelector(selector).click(),
-        selector
-      );
-
       try {
-        await page.waitForSelector(RESTART_BUTTON_SELECTOR, { timeout: 5000 });
+        //nope so its the decision screen
+        await page.waitForSelector(DECISION_SELECTOR, { timeout: 1000 });
 
-        await page.click(RESTART_BUTTON_SELECTOR);
+        await page.click(DECISION_BUTTON_SELECTOR);
 
-        await page.waitForSelector(QUESTION_TEXT_SELECTOR);
+        await page.waitForSelector(BUBBLE_CONTAINER_SELECTOR, {
+          timeout: 1000
+        });
+        await page.waitForSelector(BUBBLE_SELECTOR, { timeout: 1000 });
 
-        return answerQuestion(page);
+        const selector =
+          BUBBLE_SELECTOR + `:nth-child(${getRandomInteger(1, 12)}) > img`;
+
+        await page.evaluate(
+          selector => document.querySelector(selector).click(),
+          selector
+        );
+
+        try {
+          await page.waitForSelector(RESTART_BUTTON_SELECTOR, {
+            timeout: 1000
+          });
+
+          await page.click(RESTART_BUTTON_SELECTOR);
+
+          await page.waitForSelector(QUESTION_TEXT_SELECTOR, { timeout: 1000 });
+
+          return answerQuestion(page);
+        } catch (e) {
+          console.log("YOU WON!");
+
+          return;
+        }
       } catch (e) {
-        console.log("YOU WON!");
-
-        return;
+        console.log("Unkown screen");
+        return await page.reload();
       }
     }
   }
