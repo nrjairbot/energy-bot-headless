@@ -90,7 +90,7 @@ async function run() {
 
 async function answerQuestion(page) {
   const question = await page.evaluate(
-    selector => document.querySelector(selector),
+    selector => document.querySelector(selector).textContent,
     QUESTION_TEXT_SELECTOR
   );
 
@@ -116,7 +116,7 @@ async function answerQuestion(page) {
       await waitForElement(page, BUBBLE_CONTAINER_SELECTOR, 100);
 
       await page.click(
-        BUBBLE_SELECTOR + `:nth-child(${getRandomArbitrary(0, 12)})`
+        BUBBLE_SELECTOR + `:nth-child(${getRandomArbitrary(1, 13)})`
       );
 
       await wait(500);
@@ -143,21 +143,21 @@ async function answerQuestion(page) {
       ? answers.findIndex(e => e === ANSWERS[question])
       : await ask(
           `Question/Answer unknown!
-		  Question: ${question}
-		  Answers:
-		  ${answers.map((answer, index) => `${answer} (${index})`).join("\n")}
-		  
-		 Enter the answer index:`
+Question: ${question}
+Answers:
+${answers.map((answer, index) => `${answer} (${index})`).join("\n")}
+
+Enter the answer index:`
         );
 
   //save answer
   ANSWERS[question] = answers[answerIndex];
 
-  await page.click(ANSWERS_SELECTOR + `:nth-child(${answerIndex}) input`);
+  await page.click(ANSWERS_SELECTOR + `:nth-child(${answerIndex + 1}) input`);
 
   await page.click(NEXT_QUESTION_BUTTON_SELECTOR);
 
-  await wait(500);
+  return answerQuestion(page);
 }
 
 async function quit() {
