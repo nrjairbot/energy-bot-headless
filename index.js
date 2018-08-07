@@ -89,20 +89,43 @@ async function run() {
 }
 
 async function answerQuestion(page) {
-  const question = await page.evaluate(
-    selector => document.querySelector(selector).textContent,
-    QUESTION_TEXT_SELECTOR
-  );
+  try {
+    const question = await page.evaluate(
+      selector => document.querySelector(selector).textContent,
+      QUESTION_TEXT_SELECTOR
+    );
 
-  const answers = await page.evaluate(
-    selector =>
-      Array.from(document.querySelectorAll(selector)).map(
-        node => node.childNodes[2].textContent
-      ),
-    ANSWERS_SELECTOR
-  );
+    const answers = await page.evaluate(
+      selector =>
+        Array.from(document.querySelectorAll(selector)).map(
+          node => node.childNodes[2].textContent
+        ),
+      ANSWERS_SELECTOR
+    );
 
-  if (!question || !answers || answers.length === 0) {
+    const answerIndex =
+      question in ANSWERS
+        ? answers.findIndex(e => e === ANSWERS[question])
+        : await ask(
+            `Question/Answer unknown!
+Question: ${question}
+Answers:
+${answers.map((answer, index) => `${answer} (${index})`).join("\n")}
+
+Enter the answer index:`
+          );
+
+    //save answer
+    ANSWERS[question] = answers[answerIndex];
+
+    await page.click(ANSWERS_SELECTOR + `:nth-child(${answerIndex + 1}) input`);
+
+    await page.click(NEXT_QUESTION_BUTTON_SELECTOR);
+
+    return answerQuestion(page);
+  } catch (e) {
+    await waitForElement(page, DECISION_SELECTOR, 100);
+
     let text = await page.evaluate(
       selector => document.querySelector(selector).childNodes[0].textContent,
       DECISION_SELECTOR
@@ -137,27 +160,6 @@ async function answerQuestion(page) {
       }
     }
   }
-
-  const answerIndex =
-    question in ANSWERS
-      ? answers.findIndex(e => e === ANSWERS[question])
-      : await ask(
-          `Question/Answer unknown!
-Question: ${question}
-Answers:
-${answers.map((answer, index) => `${answer} (${index})`).join("\n")}
-
-Enter the answer index:`
-        );
-
-  //save answer
-  ANSWERS[question] = answers[answerIndex];
-
-  await page.click(ANSWERS_SELECTOR + `:nth-child(${answerIndex + 1}) input`);
-
-  await page.click(NEXT_QUESTION_BUTTON_SELECTOR);
-
-  return answerQuestion(page);
 }
 
 async function quit() {
