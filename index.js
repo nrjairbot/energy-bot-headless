@@ -20,6 +20,7 @@ const DECISION_BUTTON_SELECTOR =
 const BUBBLE_CONTAINER_SELECTOR = ".row.bubble-row";
 const BUBBLE_SELECTOR = ".circle";
 
+const LOSE_RESTART_BUTTON_CONTAINER_SELECTOR = ".lose";
 const RESTART_BUTTON_SELECTOR = "#lose";
 
 const ANSWERS = JSON.parse(fs.readFileSync("./answers.json"));
@@ -125,8 +126,24 @@ Enter the answer index:`
 
     await page.click(NEXT_QUESTION_BUTTON_SELECTOR);
 
+    await wait(250);
+
     return answerQuestion(page);
   } catch (e) {
+    //check if we lost
+    if (
+      await page.evaluate(
+        selector => document.querySelector(selector),
+        LOSE_RESTART_BUTTON_CONTAINER_SELECTOR
+      )
+    ) {
+      await page.click(LOSE_RESTART_BUTTON_CONTAINER_SELECTOR + " button");
+
+      await wait(250);
+      return answerQuestion(page);
+    }
+
+    //nope so its the decision screen
     await waitForElement(page, DECISION_SELECTOR, 100);
 
     let text = await page.evaluate(
