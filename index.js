@@ -73,16 +73,18 @@ async function run() {
 
   await waitForElement(page, PHONE_NUMBER_INPUT_SELECTOR, 100);
 
+  const number = await ask(
+    "What is your phone number? (format: +41XXXXXXXXX): "
+  );
   await page.click(PHONE_NUMBER_INPUT_SELECTOR);
-  await page.keyboard.type(
-    await ask("What is your phone number? (format: +41XXXXXXXXX): ")
-  );
+  await page.keyboard.type(number);
   await page.click(PHONE_NUMBER_SUBMIT_BUTTON_SELECTOR);
+
   await waitForElement(page, SMS_CODE_INPUT_SELECTOR, 100);
+
+  const code = await ask("What is the 4 digit code you received? ");
   await page.click(SMS_CODE_INPUT_SELECTOR);
-  await page.keyboard.type(
-    await ask("What is the 4 digit code you received? ")
-  );
+  await page.keyboard.type(code);
   await page.click(SMS_CODE_SUBMIT_BUTTON_SELECTOR);
 
   await waitForElement(page, QUESTION_TEXT_SELECTOR, 100);
@@ -138,12 +140,17 @@ Enter the answer index:`
       await page.click(DECISION_BUTTON_SELECTOR);
 
       await waitForElement(page, BUBBLE_CONTAINER_SELECTOR, 100);
+      await waitForElement(page, BUBBLE_SELECTOR, 100);
 
-      await page.click(
-        BUBBLE_SELECTOR + `:nth-child(${getRandomInteger(1, 12)})`
+      const selector =
+        BUBBLE_SELECTOR + `:nth-child(${getRandomInteger(1, 12)}) > img`;
+
+      await page.evaluate(
+        selector => document.querySelector(selector).click(),
+        selector
       );
 
-      await wait(500);
+      await wait(1000);
 
       if (
         await page.evaluate(
@@ -152,6 +159,8 @@ Enter the answer index:`
         )
       ) {
         await page.click(RESTART_BUTTON_SELECTOR);
+
+        await waitForElement(page, QUESTION_TEXT_SELECTOR, 100);
 
         return answerQuestion(page);
       } else {
