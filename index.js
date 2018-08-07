@@ -41,7 +41,8 @@ const ask = question =>
 const wait = time =>
   new Promise((resolve, reject) => setTimeout(resolve, time));
 
-const getRandomArbitrary = (min, max) => Math.random() * (max - min) + min;
+const getRandomInteger = (min, max) =>
+  Math.floor(Math.random() * (max - min + 1)) + min;
 
 const waitForElement = async (page, selector, timeout = 500) => {
   try {
@@ -139,7 +140,7 @@ Enter the answer index:`
       await waitForElement(page, BUBBLE_CONTAINER_SELECTOR, 100);
 
       await page.click(
-        BUBBLE_SELECTOR + `:nth-child(${getRandomArbitrary(1, 13)})`
+        BUBBLE_SELECTOR + `:nth-child(${getRandomInteger(1, 12)})`
       );
 
       await wait(500);
